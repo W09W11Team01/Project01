@@ -39,11 +39,15 @@ void cond_wait (struct condition *, struct lock *); // 연관된 락(lock)을 �
 void cond_signal (struct condition *, struct lock *); // 조건(condition)을 기다리는 스레드 중 하나를 깨웁니다. 락(lock)을 보유한 상태에서 호출해야 합니다.
 void cond_broadcast (struct condition *, struct lock *); // 조건(condition)을 기다리는 모든 스레드를 깨웁니다. 락(lock)을 보유한 상태에서 호출해야 합니다.
 
+bool compare_sema_list_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+
+
 /* 최적화 장벽 (Optimization Barrier).
  *
  * 컴파일러는 최적화 장벽을 가로질러 연산 순서를 재배치하지 않습니다.
  * 자세한 정보는 참조 가이드의 "최적화 장벽(Optimization Barriers)" 부분을 참조하세요.
  */
 #define barrier() asm volatile ("" : : : "memory") // 메모리 연산 순서를 보장하기 위한 어셈블리 구문.
+
 
 #endif /* threads/synch.h */
