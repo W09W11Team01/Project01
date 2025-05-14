@@ -184,14 +184,29 @@ lock_init (struct lock *lock) {
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
-void
-lock_acquire (struct lock *lock) {
-	ASSERT (lock != NULL);
-	ASSERT (!intr_context ());
-	ASSERT (!lock_held_by_current_thread (lock));
+/* threads/synch.c */
+/* before */
 
-	sema_down (&lock->semaphore);
-	lock->holder = thread_current ();
+void lock_acquire(struct lock *lock)
+{
+	ASSERT(lock != NULL);
+	ASSERT(!intr_context());
+	ASSERT(!lock_held_by_current_thread(lock));
+
+	/* donation priority */
+	struct thread *cur_thread = thread_current();  
+	if (lock->holder)  
+	{
+		cur_thread->wait_on_lock = lock;
+		list_insert_ordered(&lock->holder->donations, &cur_thread->donations_elem,
+							compare_thread_priority, 0);
+		donate_priority();
+	}
+
+	sema_down(&lock->semaphore);
+	
+	cur_thread->wait_on_lock = NULL;  
+	lock->holder = thread_current();
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -219,13 +234,21 @@ lock_try_acquire (struct lock *lock) {
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to release a lock within an interrupt
    handler. */
-void
-lock_release (struct lock *lock) {
-	ASSERT (lock != NULL);
-	ASSERT (lock_held_by_current_thread (lock));
+/* threads/synch.c */
+/* after */
+
+
+void lock_release(struct lock *lock)
+{
+	ASSERT(lock != NULL);
+	ASSERT(lock_held_by_current_thread(lock));
+
+	/* donation priority */		
+	remove_with_lock(lock);  
+	refresh_priority();  
 
 	lock->holder = NULL;
-	sema_up (&lock->semaphore);
+	sema_up(&lock->semaphore);
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -336,3 +359,17 @@ bool compare_sema_list_priority(const struct list_elem *a, const struct list_ele
 	struct list_elem *tb = list_begin(&sb->semaphore.waiters);
 	return compare_thread_priority(ta, tb, NULL);
 }
+
+/* threads/synch.c */
+
+bool compare_semaphore_priority(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+	struct semaphore_elem *sa = list_entry(a, struct semaphore_elem, elem);
+	struct semaphore_elem *sb = list_entry(b, struct semaphore_elem, elem);
+
+	struct list_elem *ta = list_begin(&sa->semaphore.waiters);
+	struct list_elem *tb = list_begin(&sb->semaphore.waiters);
+	return compare_thread_priority(ta, tb, NULL);
+}
+
+// synch.h 헤더 파일에 함수 선언을 꼭 해주세요

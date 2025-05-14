@@ -41,6 +41,7 @@ void cond_broadcast (struct condition *, struct lock *); // 조건(condition)을
 
 bool compare_sema_list_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 
+bool compare_semaphore_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 /* 최적화 장벽 (Optimization Barrier).
  *

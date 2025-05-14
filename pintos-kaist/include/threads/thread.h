@@ -90,9 +90,16 @@ struct thread {
 	enum thread_status status;          /* 스레드 상태. */
 	char name[16];                      /* 이름 (디버깅 목적). */
 	int priority;                       /* 우선순위. */
-	int64_t time_to_wakeup; /* alarm clock */
+	/* alarm clock */
+	int64_t time_to_wakeup;
 	/* thread.c와 synch.c 간에 공유됨. */
 	struct list_elem elem;              /* 리스트 요소. */
+
+	
+	int init_priority;
+	struct lock *wait_on_lock;
+	struct list donations;
+	struct list_elem donations_elem;
 
 #ifdef USERPROG
 	/* userprog/process.c가 소유함. */
@@ -150,6 +157,11 @@ bool compare_thread_priority(const struct list_elem *a_, const struct list_elem 
 
 void thread_preemption(void);
 
+void donate_priority(void);
+
+void remove_with_lock(struct lock *lock);
+
+void refresh_priority (void);
 
 
 #endif /* threads/thread.h */

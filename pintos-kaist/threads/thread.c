@@ -321,7 +321,11 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	thread_current()->init_priority = new_priority;
+	refresh_priority();
 	thread_preemption ();
+
+
 }
 
 /* 현재 스레드의 우선순위를 반환합니다. */
@@ -419,6 +423,11 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+
+	/*donation*/
+	t ->init_priority = priority;
+	t ->wait_on_lock = NULL;
+	list_init(&t->donations);
 }
 
 /* 스케줄링될 다음 스레드를 선택하여 반환합니다.  Should
@@ -665,3 +674,51 @@ void thread_preemption(void)
 			thread_yield();
 	}
 }
+
+/* threads/thread.c */
+
+void donate_priority(void)
+{
+	struct thread *holder = thread_current()->wait_on_lock->holder;
+	int count = 0;
+	while (holder != NULL)
+	{
+		holder->priority = thread_current()->priority;
+		count++;
+		if (count > 8 || holder->wait_on_lock == NULL)
+			break;
+		holder = holder->wait_on_lock->holder;
+	}
+}
+
+
+void remove_with_lock(struct lock *lock)
+{
+	struct list_elem *curr_donation_elem = list_begin(&thread_current()->donations);
+
+	while (curr_donation_elem != list_tail(&thread_current()->donations))
+	{
+		struct thread *curr_donation_thread = list_entry(curr_donation_elem, struct thread, donations_elem);
+		if (curr_donation_thread->wait_on_lock == lock)
+			curr_donation_elem = list_remove(curr_donation_elem);
+		else
+			curr_donation_elem = list_next(curr_donation_elem);
+	}
+}
+
+
+
+void refresh_priority (void)
+{
+  struct thread *cur = thread_current ();
+
+  cur->priority = cur->init_priority;
+  
+  if (!list_empty (&cur->donations)) 
+  {
+    struct thread *front = list_entry(list_front (&cur->donations), struct thread, donations_elem);
+    if (front->priority > cur->priority)
+      cur->priority = front->priority;
+  }
+}
+
