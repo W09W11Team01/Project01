@@ -67,10 +67,14 @@ sema_down (struct semaphore *sema) {
 	old_level = intr_disable ();
 	while (sema->value == 0) {
 		list_insert_ordered(&sema->waiters, &thread_current()->elem, compare_thread_priority, NULL );
+
+		donate_priority();
 		thread_block ();
 	}
 	sema->value--;
 	intr_set_level (old_level);
+
+
 }
 
 /* Down or "P" operation on a semaphore, but only if the
@@ -311,6 +315,7 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
+	
 }
 
 /* If any threads are waiting on COND (protected by LOCK), then
