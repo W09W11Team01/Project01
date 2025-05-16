@@ -722,3 +722,17 @@ void refresh_priority (void)
   }
 }
 
+void donate_priority_thread(struct thread *t)
+{
+	int depth = 0;
+	while (t->wait_on_lock != NULL && depth < 8)
+	{
+		struct thread *holder = t->wait_on_lock->holder;
+		if (holder == NULL) break;
+		if (holder->priority < t->priority)
+			holder->priority = t->priority;
+
+		t = holder;
+		depth++;
+	}
+}
