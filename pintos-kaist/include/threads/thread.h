@@ -164,4 +164,7 @@ void remove_with_lock(struct lock *lock);
 void refresh_priority (void);
 
 
+void donate_priority_thread(struct thread *t);
+
+
 #endif /* threads/thread.h */

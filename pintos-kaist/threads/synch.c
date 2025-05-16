@@ -67,10 +67,13 @@ sema_down (struct semaphore *sema) {
 	old_level = intr_disable ();
 	while (sema->value == 0) {
 		list_insert_ordered(&sema->waiters, &thread_current()->elem, compare_thread_priority, NULL );
+		donate_priority_thread(thread_current());
 		thread_block ();
 	}
 	sema->value--;
 	intr_set_level (old_level);
+
+
 }
 
 /* Down or "P" operation on a semaphore, but only if the
@@ -109,14 +112,22 @@ sema_up (struct semaphore *sema) {
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
-	if (!list_empty (&sema->waiters))
-		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));
+
+	if (!list_empty (&sema->waiters)) {
+		//  waiters 리스트를 priority 순으로 정렬
+		list_sort(&sema->waiters, compare_thread_priority, NULL);
+		
+		//  우선순위 가장 높은 스레드 깨우기
+		thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
+	}
+
 	sema->value++;
 	intr_set_level (old_level);
-	thread_preemption(); // 선점 함수
-	
+
+	//  현재보다 높은 우선순위가 깨어났다면 양보
+	thread_preemption();
 }
+
 
 static void sema_test_helper (void *sema_);
 
@@ -259,8 +270,9 @@ lock_held_by_current_thread (const struct lock *lock) {
 	ASSERT (lock != NULL);
 
 	return lock->holder == thread_current ();
-}
-
+}
+
+
 /* One semaphore in a list. */
 struct semaphore_elem {
 	struct list_elem elem;              /* List element. */
@@ -311,6 +323,7 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
+	
 }
 
 /* If any threads are waiting on COND (protected by LOCK), then
